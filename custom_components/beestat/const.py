@@ -14,8 +14,9 @@ SUMMARY_SCAN_INTERVAL = timedelta(hours=1)
 # How many days of summary data to fetch on each summary refresh.
 SUMMARY_LOOKBACK_DAYS = 7
 
-# Beestat caps a single runtime read at 31 days.
-RUNTIME_MAX_RANGE_DAYS = 31
+# Beestat caps a single runtime read at 31 days (specifically 2,678,000s ≈
+# 30.995 days). Use 30 to stay comfortably below the threshold.
+RUNTIME_MAX_RANGE_DAYS = 30
 
 # Backfill defaults (when the user calls the service without arguments).
 BACKFILL_DEFAULT_DAYS = 30

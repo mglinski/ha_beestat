@@ -89,6 +89,16 @@ async def _do_backfill(call: ServiceCall) -> None:
                 _LOGGER.error("Backfill failed for sensor %s: %s", sid_str, err)
 
 
+def _iso_z(dt: datetime) -> str:
+    """Format a UTC datetime as ISO 8601 with `Z` suffix.
+
+    We avoid `+00:00` because it survives `application/x-www-form-urlencoded`
+    decoding on the PHP side as a literal space, which then breaks
+    `strtotime()` and causes spurious "Max range is 31 days" errors.
+    """
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def _chunk_ranges(
     start: datetime, end: datetime
 ) -> list[tuple[datetime, datetime]]:
@@ -110,7 +120,7 @@ async def _fetch_runtime_thermostat(
     for chunk_start, chunk_end in _chunk_ranges(start, end):
         rows.extend(
             await client.runtime_thermostat(
-                thermostat_id, chunk_start.isoformat(), chunk_end.isoformat()
+                thermostat_id, _iso_z(chunk_start), _iso_z(chunk_end)
             )
         )
     return rows
@@ -123,7 +133,7 @@ async def _fetch_runtime_sensor(
     for chunk_start, chunk_end in _chunk_ranges(start, end):
         rows.extend(
             await client.runtime_sensor(
-                sensor_id, chunk_start.isoformat(), chunk_end.isoformat()
+                sensor_id, _iso_z(chunk_start), _iso_z(chunk_end)
             )
         )
     return rows
