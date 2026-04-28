@@ -99,14 +99,36 @@ class BeestatClient:
     ) -> list[dict[str, Any]]:
         """Per-day aggregate runtime data.
 
-        If `thermostat_id` is omitted, beestat returns rows for every thermostat
-        the user owns.
+        Beestat exposes only `read_id` on this resource (not `read`). `read_id`
+        returns a dict keyed by `runtime_thermostat_summary_id`; we flatten to
+        a list. The exposed call does NOT divide the *10-stored temperature
+        and degree-day fields, so we normalize them client-side here.
         """
         args: dict[str, Any] = {}
         if thermostat_id is not None:
             args["thermostat_id"] = int(thermostat_id)
-        data = await self._call("runtime_thermostat_summary", "read", args or None)
-        return data or []
+        data = await self._call(
+            "runtime_thermostat_summary", "read_id", args or None
+        )
+        if not data:
+            return []
+
+        rows = list(data.values()) if isinstance(data, dict) else list(data)
+
+        scale_fields = (
+            "avg_outdoor_temperature",
+            "min_outdoor_temperature",
+            "max_outdoor_temperature",
+            "avg_indoor_temperature",
+            "sum_heating_degree_days",
+            "sum_cooling_degree_days",
+        )
+        for row in rows:
+            for field in scale_fields:
+                value = row.get(field)
+                if value is not None:
+                    row[field] = value / 10
+        return rows
 
     async def runtime_thermostat(
         self,
