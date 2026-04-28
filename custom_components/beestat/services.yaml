@@ -1,0 +1,32 @@
+refresh:
+  name: Refresh
+  description: Force-refresh live and summary data from beestat.
+
+backfill_history:
+  name: Backfill history
+  description: >
+    Pull 5-minute interval thermostat and sensor history from beestat and
+    import it into Home Assistant long-term statistics. Beestat caps each
+    call at 31 days; longer ranges are chunked automatically.
+  fields:
+    days:
+      name: Days
+      description: How many days back from now to backfill. Defaults to 30.
+      example: 30
+      default: 30
+      selector:
+        number:
+          min: 1
+          max: 365
+          unit_of_measurement: days
+          mode: box
+    thermostat_id:
+      name: Thermostat ID
+      description: >
+        Optional. Restrict backfill to a single thermostat by its beestat
+        thermostat_id. Omit to backfill every thermostat.
+      example: 12345
+      selector:
+        number:
+          min: 1
+          mode: box

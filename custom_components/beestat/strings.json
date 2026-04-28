@@ -1,0 +1,63 @@
+{
+  "entity": {
+    "sensor": {
+      "temperature": {"name": "Temperature"},
+      "humidity": {"name": "Humidity"},
+      "setpoint_heat": {"name": "Heat setpoint"},
+      "setpoint_cool": {"name": "Cool setpoint"},
+      "heat_runtime": {"name": "Heat runtime (latest day)"},
+      "cool_runtime": {"name": "Cool runtime (latest day)"},
+      "aux_heat_runtime": {"name": "Aux heat runtime (latest day)"},
+      "fan_runtime": {"name": "Fan runtime (latest day)"},
+      "avg_indoor_temperature": {"name": "Avg indoor temperature (latest day)"},
+      "avg_outdoor_temperature": {"name": "Avg outdoor temperature (latest day)"}
+    },
+    "binary_sensor": {
+      "compressor_1": {"name": "Compressor stage 1"},
+      "compressor_2": {"name": "Compressor stage 2"},
+      "auxiliary_heat_1": {"name": "Heat stage 1"},
+      "auxiliary_heat_2": {"name": "Heat stage 2"},
+      "fan": {"name": "Fan"},
+      "occupancy": {"name": "Occupancy"}
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "description": "Enter your beestat API key. You can generate one in beestat.io under Settings > API key.",
+        "data": {
+          "api_key": "API key"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid API key.",
+      "rate_limit": "Beestat is rate-limiting requests. Wait a minute and try again.",
+      "cannot_connect": "Could not reach beestat.",
+      "no_thermostats": "API key is valid but no thermostats are linked to this beestat account."
+    },
+    "abort": {
+      "already_configured": "This beestat account is already configured."
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Refresh",
+      "description": "Force-refresh live and summary data from beestat."
+    },
+    "backfill_history": {
+      "name": "Backfill history",
+      "description": "Pull 5-minute interval thermostat and sensor history from beestat and import it into Home Assistant long-term statistics. Beestat caps each call at 31 days; longer ranges are chunked automatically.",
+      "fields": {
+        "days": {
+          "name": "Days",
+          "description": "How many days back from now to backfill. Defaults to 30."
+        },
+        "thermostat_id": {
+          "name": "Thermostat ID",
+          "description": "Optional: restrict backfill to a single thermostat by its beestat thermostat_id. Omit to backfill every thermostat."
+        }
+      }
+    }
+  }
+}
