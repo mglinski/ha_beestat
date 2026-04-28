@@ -1,7 +1,7 @@
 {
   "domain": "beestat",
   "name": "Beestat",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "documentation": "https://github.com/mglinski/ha_beestat",
   "issue_tracker": "https://github.com/mglinski/ha_beestat/issues",
   "codeowners": ["@mglinski"],

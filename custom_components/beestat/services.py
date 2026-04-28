@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.components.recorder.models import StatisticMeanType
 from homeassistant.components.recorder.statistics import async_add_external_statistics
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
@@ -224,7 +225,7 @@ async def _backfill_thermostat(
             async_add_external_statistics(
                 hass,
                 {
-                    "has_mean": True,
+                    "mean_type": StatisticMeanType.ARITHMETIC,
                     "has_sum": False,
                     "name": friendly,
                     "source": DOMAIN,
@@ -251,7 +252,7 @@ async def _backfill_thermostat(
             async_add_external_statistics(
                 hass,
                 {
-                    "has_mean": False,
+                    "mean_type": StatisticMeanType.NONE,
                     "has_sum": True,
                     "name": friendly,
                     "source": DOMAIN,
@@ -345,7 +346,7 @@ async def _backfill_sensor(
         async_add_external_statistics(
             hass,
             {
-                "has_mean": True,
+                "mean_type": StatisticMeanType.ARITHMETIC,
                 "has_sum": False,
                 "name": f"{name} temperature",
                 "source": DOMAIN,
@@ -359,7 +360,7 @@ async def _backfill_sensor(
         async_add_external_statistics(
             hass,
             {
-                "has_mean": True,
+                "mean_type": StatisticMeanType.ARITHMETIC,
                 "has_sum": False,
                 "name": f"{name} occupancy",
                 "source": DOMAIN,
