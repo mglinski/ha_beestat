@@ -104,11 +104,11 @@ class BeestatClient:
         a list. The exposed call does NOT divide the *10-stored temperature
         and degree-day fields, so we normalize them client-side here.
         """
-        args: dict[str, Any] = {}
+        args: dict[str, Any] | None = None
         if thermostat_id is not None:
-            args["thermostat_id"] = int(thermostat_id)
+            args = {"attributes": {"thermostat_id": int(thermostat_id)}}
         data = await self._call(
-            "runtime_thermostat_summary", "read_id", args or None
+            "runtime_thermostat_summary", "read_id", args
         )
         if not data:
             return []
@@ -138,14 +138,18 @@ class BeestatClient:
     ) -> list[dict[str, Any]]:
         """5-minute interval thermostat history. Max 31-day window per call.
 
-        Timestamps are ISO 8601 strings (UTC recommended).
+        Timestamps are ISO 8601 strings (UTC recommended). cora dispatches
+        arguments by PHP parameter name via reflection, so filter values must
+        be wrapped under `attributes` to match `read($attributes, $columns)`.
         """
         args = {
-            "thermostat_id": int(thermostat_id),
-            "timestamp": {
-                "operator": "between",
-                "value": [start, end],
-            },
+            "attributes": {
+                "thermostat_id": int(thermostat_id),
+                "timestamp": {
+                    "operator": "between",
+                    "value": [start, end],
+                },
+            }
         }
         data = await self._call("runtime_thermostat", "read", args)
         return data or []
@@ -158,11 +162,13 @@ class BeestatClient:
     ) -> list[dict[str, Any]]:
         """5-minute interval remote-sensor history. Max 31-day window per call."""
         args = {
-            "sensor_id": int(sensor_id),
-            "timestamp": {
-                "operator": "between",
-                "value": [start, end],
-            },
+            "attributes": {
+                "sensor_id": int(sensor_id),
+                "timestamp": {
+                    "operator": "between",
+                    "value": [start, end],
+                },
+            }
         }
         data = await self._call("runtime_sensor", "read", args)
         return data or []
