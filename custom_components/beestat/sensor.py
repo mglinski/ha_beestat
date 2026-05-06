@@ -1,6 +1,7 @@
 """Sensor platform for Beestat."""
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -20,6 +21,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DATA_LIVE, DATA_SUMMARY, DOMAIN
 from .coordinator import BeestatLiveCoordinator, BeestatSummaryCoordinator
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -265,6 +268,7 @@ async def async_setup_entry(
                     RemoteSensor(live, entry.entry_id, sid, desc)
                 )
 
+    _LOGGER.info("Adding %d Beestat sensor entity(ies)", len(entities))
     async_add_entities(entities)
 
 

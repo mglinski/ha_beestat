@@ -46,10 +46,17 @@ class BeestatLiveCoordinator(DataUpdateCoordinator[LiveData]):
         except BeestatAuthError as err:
             # Surfacing as UpdateFailed is enough; auth errors during polling
             # don't get a reauth flow in v1.
+            _LOGGER.error("Live coordinator auth failure: %s", err)
             raise UpdateFailed(f"Authentication failed: {err}") from err
         except BeestatError as err:
+            _LOGGER.warning("Live coordinator update failed: %s", err)
             raise UpdateFailed(str(err)) from err
 
+        _LOGGER.debug(
+            "Live update: %d thermostats, %d sensors",
+            len(thermostats),
+            len(sensors),
+        )
         return LiveData(thermostats=thermostats, sensors=sensors)
 
 
@@ -73,6 +80,7 @@ class BeestatSummaryCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, A
         try:
             rows = await self.client.runtime_thermostat_summary()
         except BeestatError as err:
+            _LOGGER.warning("Summary coordinator update failed: %s", err)
             raise UpdateFailed(str(err)) from err
 
         # Group by thermostat_id and keep only the last N days.
@@ -86,4 +94,9 @@ class BeestatSummaryCoordinator(DataUpdateCoordinator[dict[str, list[dict[str, A
             # `date` is ISO YYYY-MM-DD so lexical sort = chronological.
             grouped[tid] = items[-SUMMARY_LOOKBACK_DAYS:]
 
+        _LOGGER.debug(
+            "Summary update: %d thermostat(s), %d total rows kept",
+            len(grouped),
+            sum(len(v) for v in grouped.values()),
+        )
         return grouped

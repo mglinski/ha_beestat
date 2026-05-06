@@ -43,7 +43,9 @@ def _all_entries(hass: HomeAssistant) -> list[dict[str, Any]]:
 
 async def _do_refresh(call: ServiceCall) -> None:
     hass = call.hass
-    for entry in _all_entries(hass):
+    entries = _all_entries(hass)
+    _LOGGER.info("Refresh requested for %d Beestat config entry(ies)", len(entries))
+    for entry in entries:
         await entry[DATA_LIVE].async_request_refresh()
         await entry[DATA_SUMMARY].async_request_refresh()
 
@@ -61,6 +63,19 @@ async def _do_backfill(call: ServiceCall) -> None:
     end = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
     start = end - timedelta(days=days)
 
+    _LOGGER.info(
+        "Backfill starting: range %s -> %s (%d days), thermostat_id filter=%s",
+        start.isoformat(),
+        end.isoformat(),
+        days,
+        thermostat_id_filter if thermostat_id_filter is not None else "all",
+    )
+
+    thermostats_done = 0
+    thermostats_failed = 0
+    sensors_done = 0
+    sensors_failed = 0
+
     for entry in entries:
         client: BeestatClient = entry[DATA_CLIENT]
         live = entry[DATA_LIVE]
@@ -74,7 +89,9 @@ async def _do_backfill(call: ServiceCall) -> None:
                 continue
             try:
                 await _backfill_thermostat(hass, client, tid, thermostat, start, end)
+                thermostats_done += 1
             except BeestatError as err:
+                thermostats_failed += 1
                 _LOGGER.error(
                     "Backfill failed for thermostat %s: %s", tid, err
                 )
@@ -86,8 +103,19 @@ async def _do_backfill(call: ServiceCall) -> None:
                 continue
             try:
                 await _backfill_sensor(hass, client, int(sid_str), sensor, start, end)
+                sensors_done += 1
             except BeestatError as err:
+                sensors_failed += 1
                 _LOGGER.error("Backfill failed for sensor %s: %s", sid_str, err)
+
+    _LOGGER.info(
+        "Backfill finished: %d thermostat(s) ok, %d failed; "
+        "%d sensor(s) ok, %d failed",
+        thermostats_done,
+        thermostats_failed,
+        sensors_done,
+        sensors_failed,
+    )
 
 
 def _iso_z(dt: datetime) -> str:
@@ -118,7 +146,16 @@ async def _fetch_runtime_thermostat(
     client: BeestatClient, thermostat_id: int, start: datetime, end: datetime
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    for chunk_start, chunk_end in _chunk_ranges(start, end):
+    chunks = _chunk_ranges(start, end)
+    for idx, (chunk_start, chunk_end) in enumerate(chunks, 1):
+        _LOGGER.debug(
+            "Fetching runtime_thermostat chunk %d/%d for thermostat %s: %s -> %s",
+            idx,
+            len(chunks),
+            thermostat_id,
+            _iso_z(chunk_start),
+            _iso_z(chunk_end),
+        )
         rows.extend(
             await client.runtime_thermostat(
                 thermostat_id, _iso_z(chunk_start), _iso_z(chunk_end)
@@ -131,7 +168,16 @@ async def _fetch_runtime_sensor(
     client: BeestatClient, sensor_id: int, start: datetime, end: datetime
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    for chunk_start, chunk_end in _chunk_ranges(start, end):
+    chunks = _chunk_ranges(start, end)
+    for idx, (chunk_start, chunk_end) in enumerate(chunks, 1):
+        _LOGGER.debug(
+            "Fetching runtime_sensor chunk %d/%d for sensor %s: %s -> %s",
+            idx,
+            len(chunks),
+            sensor_id,
+            _iso_z(chunk_start),
+            _iso_z(chunk_end),
+        )
         rows.extend(
             await client.runtime_sensor(
                 sensor_id, _iso_z(chunk_start), _iso_z(chunk_end)
@@ -387,6 +433,7 @@ def async_register_services(hass: HomeAssistant) -> None:
     hass.services.async_register(
         DOMAIN, SERVICE_BACKFILL_HISTORY, _do_backfill, schema=BACKFILL_SCHEMA
     )
+    _LOGGER.debug("Registered Beestat services: refresh, backfill_history")
 
 
 def async_unregister_services(hass: HomeAssistant) -> None:

@@ -55,33 +55,57 @@ class BeestatClient:
         if arguments is not None:
             params["arguments"] = json.dumps(arguments, separators=(",", ":"))
 
+        # Mask the api_key in logs.
+        _LOGGER.debug(
+            "API call %s.%s args=%s",
+            resource,
+            method,
+            params.get("arguments", "{}"),
+        )
+
         try:
             async with async_timeout.timeout(DEFAULT_TIMEOUT):
                 resp = await self._session.get(API_BASE_URL, params=params)
                 payload = await resp.json(content_type=None)
         except asyncio.TimeoutError as err:
+            _LOGGER.warning("Timeout calling beestat %s.%s", resource, method)
             raise BeestatError(f"Timeout calling beestat {resource}.{method}") from err
         except aiohttp.ClientError as err:
+            _LOGGER.warning("Network error calling beestat %s.%s: %s", resource, method, err)
             raise BeestatError(f"Network error calling beestat: {err}") from err
         except (ValueError, json.JSONDecodeError) as err:
+            _LOGGER.warning("Invalid JSON from beestat %s.%s: %s", resource, method, err)
             raise BeestatError(f"Invalid JSON from beestat: {err}") from err
 
         if not isinstance(payload, dict):
+            _LOGGER.warning("Unexpected response shape from %s.%s: %r", resource, method, payload)
             raise BeestatError(f"Unexpected response shape: {payload!r}")
 
         if payload.get("success") is True:
-            return payload.get("data")
+            data = payload.get("data")
+            if isinstance(data, dict):
+                _LOGGER.debug("API call %s.%s ok (dict, %d keys)", resource, method, len(data))
+            elif isinstance(data, list):
+                _LOGGER.debug("API call %s.%s ok (list, %d items)", resource, method, len(data))
+            else:
+                _LOGGER.debug("API call %s.%s ok (%s)", resource, method, type(data).__name__)
+            return data
 
         data = payload.get("data") or {}
         message = data.get("error_message", "unknown error")
         code = data.get("error_code")
-        # Beestat returns specific codes for auth/rate; map heuristically by message
-        # since the documented set isn't published.
         lowered = str(message).lower()
         if "api key" in lowered or "unauthor" in lowered or code in (1004, 1005):
+            _LOGGER.info("Beestat auth rejected for %s.%s: %s", resource, method, message)
             raise BeestatAuthError(message)
         if "rate" in lowered or "limit" in lowered or code == 1209:
+            _LOGGER.warning(
+                "Beestat rate-limit hit on %s.%s: %s", resource, method, message
+            )
             raise BeestatRateLimitError(message)
+        _LOGGER.warning(
+            "Beestat error %s on %s.%s: %s", code, resource, method, message
+        )
         raise BeestatError(f"Beestat error {code}: {message}")
 
     async def thermostats(self) -> dict[str, dict[str, Any]]:

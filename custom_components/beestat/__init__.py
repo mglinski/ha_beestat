@@ -20,6 +20,7 @@ PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Beestat from a config entry."""
+    _LOGGER.info("Setting up Beestat config entry %s", entry.entry_id)
     session = async_get_clientsession(hass)
     client = BeestatClient(session, entry.data[CONF_API_KEY])
 
@@ -41,15 +42,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     async_register_services(hass)
+
+    t_count = len(live.data.thermostats) if live.data else 0
+    s_count = len(live.data.sensors) if live.data else 0
+    summary_count = len(summary.data) if summary.data else 0
+    _LOGGER.info(
+        "Beestat setup complete: %d thermostat(s), %d remote sensor(s), "
+        "summary rows for %d thermostat(s)",
+        t_count,
+        s_count,
+        summary_count,
+    )
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    _LOGGER.debug("Unloading Beestat config entry %s", entry.entry_id)
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id, None)
         if not hass.data[DOMAIN]:
             async_unregister_services(hass)
             hass.data.pop(DOMAIN, None)
+            _LOGGER.debug("Last Beestat entry unloaded; services deregistered")
     return unload_ok
